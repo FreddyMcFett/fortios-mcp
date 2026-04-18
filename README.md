@@ -27,7 +27,25 @@ Safe by default: every mutating operation is blocked unless
 
 ---
 
+## Architecture
+
+![fortios-mcp architecture](docs/architecture.svg)
+
+One server instance talks to one FortiGate. The MCP client speaks the
+Model Context Protocol over stdio or streamable HTTP; the server
+translates tool calls into authenticated REST requests against
+`/api/v2/cmdb`, `/monitor`, `/log`, and `/service`. See
+[`docs/installation.md`](docs/installation.md) for the full deployment
+guide.
+
+---
+
 ## Quick start
+
+> Want the detailed walkthrough — prerequisites, token creation,
+> Docker / systemd, TLS hardening, VDOMs, troubleshooting, and
+> upgrades? Jump to
+> **[`docs/installation.md`](docs/installation.md)**.
 
 ### 1. Create a REST API admin + token on the FortiGate
 
@@ -218,6 +236,22 @@ FORTIOS_HOST=... FORTIOS_API_TOKEN=... \
 
 See [`CLAUDE.md`](CLAUDE.md) for the contributor handbook and
 [`CONTRIBUTING.md`](CONTRIBUTING.md) for commit conventions.
+
+Every feature change must ship with matching doc updates — see
+[`CLAUDE.md` §10a](CLAUDE.md#10a-documentation-requirement-for-feature-changes).
+
+---
+
+## Documentation map
+
+| Doc | What's in it |
+|-----|--------------|
+| [`docs/installation.md`](docs/installation.md) | Prerequisites, token creation, all deployment modes (uv / pipx / Docker / systemd), MCP client wiring, usage recipes, TLS hardening, troubleshooting, upgrades |
+| [`docs/architecture.svg`](docs/architecture.svg) | High-level architecture diagram |
+| [`CLAUDE.md`](CLAUDE.md) | Project handbook — architecture, coding standards, tool taxonomy, release flow, security posture |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Pre-PR checklist and commit conventions |
+| [`SECURITY.md`](SECURITY.md) | Private-disclosure process for security issues |
+| [`CHANGELOG.md`](CHANGELOG.md) | Auto-generated release notes — do not edit by hand |
 
 ---
 
