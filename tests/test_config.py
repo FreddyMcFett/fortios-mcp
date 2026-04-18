@@ -7,7 +7,9 @@ import pytest
 from fortios_mcp.utils.config import Settings
 
 
-def test_defaults_are_safe() -> None:
+def test_defaults_are_safe(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("FORTIOS_ENABLE_WRITES", "FORTIOS_VERIFY_SSL", "MCP_SERVER_MODE"):
+        monkeypatch.delenv(name, raising=False)
     s = Settings()
     assert s.FORTIOS_ENABLE_WRITES is False
     assert s.FORTIOS_VERIFY_SSL is True

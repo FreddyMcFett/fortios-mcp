@@ -67,7 +67,7 @@ instances (one per device) if you manage a fleet.
 | Python | 3.12 | Only required when running locally (uv / pipx). |
 | `uv` | latest | Fastest install path. See https://github.com/astral-sh/uv |
 | Docker | 24.x | Only for the container path. |
-| FortiGate | FortiOS **7.4** or **7.6** | Bundled Swagger is 7.6.6; older 7.4 is mostly compatible via schema discovery. |
+| FortiGate | FortiOS **7.6.6** | This is the only supported version. Bundled Swagger definitions and curated tools are validated against 7.6.6; other releases may work but are unsupported. |
 | Network | Outbound HTTPS from the host to the FortiGate management IP on `FORTIOS_PORT` (default `443`). |
 | MCP client | Claude Desktop, Claude Code, or any client that speaks MCP 2024-11 or later. |
 

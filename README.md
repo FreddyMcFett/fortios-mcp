@@ -20,10 +20,12 @@ the operator workflows you'd otherwise perform through the GUI or CLI:
 Safe by default: every mutating operation is blocked unless
 `FORTIOS_ENABLE_WRITES=true`.
 
-> FortiOS 7.6.6 API surface is bundled as 81 Swagger JSON files under
-> [`api-docs/`](api-docs/) and exposed via the built-in **schema
-> discovery tools** so an LLM can dynamically find any endpoint that
-> doesn't already have a curated wrapper.
+> **Supported FortiOS version: 7.6.6 only.** The 81 Swagger JSON files
+> bundled under [`api-docs/`](api-docs/) and the curated tool surface
+> are validated against FortiOS 7.6.6. Schema discovery and generic
+> primitives may still work against other releases, but they are not
+> supported; the server logs a warning when it detects a mismatched
+> version on first probe.
 
 ---
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -35,6 +35,8 @@ from fortios_mcp.utils.validation import sanitize_for_logging
 logger = logging.getLogger(__name__)
 
 _API_BASE = "/api/v2"
+
+SUPPORTED_FORTIOS_VERSION = (7, 6, 6)
 
 
 class FortiOSClient:
@@ -115,7 +117,7 @@ class FortiOSClient:
         """GET /monitor/system/status — verify auth and cache version."""
         data = await self.monitor_get("system/status")
         self._cache_version(data)
-        return data
+        return cast(dict[str, Any], data)
 
     def _cache_version(self, status: Any) -> None:
         results = status.get("results") if isinstance(status, dict) else None
@@ -134,6 +136,14 @@ class FortiOSClient:
                 int(parts[2]) if len(parts) > 2 else 0,
             )
             logger.info("Detected FortiOS version %s", self._version)
+            if self._version != SUPPORTED_FORTIOS_VERSION:
+                logger.warning(
+                    "FortiGate reports FortiOS %s, but fortios-mcp only supports %s. "
+                    "Curated tools and bundled schemas are validated against "
+                    "the supported version; other releases are unsupported.",
+                    ".".join(str(p) for p in self._version),
+                    ".".join(str(p) for p in SUPPORTED_FORTIOS_VERSION),
+                )
         except ValueError:
             logger.debug("Could not parse FortiOS version from %r", version)
 
