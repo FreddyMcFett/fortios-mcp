@@ -15,27 +15,39 @@ transport, VDOMs, the write-guard, troubleshooting, and upgrades.
 
 1. [Architecture at a glance](#architecture-at-a-glance)
 2. [Prerequisites](#prerequisites)
-3. [Step 1 — Prepare the FortiGate](#step-1--prepare-the-fortigate)
-4. [Step 2 — Install the server](#step-2--install-the-server)
+3. [Downloading fortios-mcp](#downloading-fortios-mcp)
+   - [git clone (source, recommended)](#git-clone-source-recommended)
+   - [Release tarball / zip](#release-tarball--zip)
+   - [Container image](#container-image)
+   - [Python package (pipx / uv tool)](#python-package-pipx--uv-tool)
+4. [Step 1 — Prepare the FortiGate](#step-1--prepare-the-fortigate)
+5. [Step 2 — Install the server](#step-2--install-the-server)
    - [uv (recommended, local)](#uv-recommended-local)
    - [pipx (local, no venv mgmt)](#pipx-local-no-venv-mgmt)
    - [Docker / docker compose (HTTP)](#docker--docker-compose-http)
    - [systemd (long-running HTTP service)](#systemd-long-running-http-service)
-5. [Step 3 — Configure environment variables](#step-3--configure-environment-variables)
-6. [Step 4 — Connect an MCP client](#step-4--connect-an-mcp-client)
+6. [Step 3 — Configure environment variables](#step-3--configure-environment-variables)
+7. [Step 4 — Connect an MCP client](#step-4--connect-an-mcp-client)
    - [Claude Desktop](#claude-desktop)
    - [Claude Code (CLI)](#claude-code-cli)
    - [Generic MCP client (HTTP)](#generic-mcp-client-http)
-7. [Using the server](#using-the-server)
+8. [Using the server](#using-the-server)
    - [First-run smoke test](#first-run-smoke-test)
    - [Read-only workflows](#read-only-workflows)
    - [Enabling writes safely](#enabling-writes-safely)
    - [VDOMs](#vdoms)
    - [Schema discovery for uncurated endpoints](#schema-discovery-for-uncurated-endpoints)
-8. [TLS / transport hardening](#tls--transport-hardening)
-9. [Upgrading](#upgrading)
-10. [Troubleshooting](#troubleshooting)
-11. [Uninstall](#uninstall)
+9. [TLS / transport hardening](#tls--transport-hardening)
+10. [Upgrading](#upgrading)
+    - [Fast upgrade — one-liners](#fast-upgrade--one-liners)
+    - [Local (uv / pipx)](#local-uv--pipx)
+    - [Docker](#docker)
+    - [systemd](#systemd)
+    - [Pinning a version](#pinning-a-version)
+    - [Rollback](#rollback)
+    - [FortiOS version bumps](#fortios-version-bumps)
+11. [Troubleshooting](#troubleshooting)
+12. [Uninstall](#uninstall)
 
 ---
 
@@ -58,6 +70,88 @@ instances (one per device) if you manage a fleet.
 | FortiGate | FortiOS **7.4** or **7.6** | Bundled Swagger is 7.6.6; older 7.4 is mostly compatible via schema discovery. |
 | Network | Outbound HTTPS from the host to the FortiGate management IP on `FORTIOS_PORT` (default `443`). |
 | MCP client | Claude Desktop, Claude Code, or any client that speaks MCP 2024-11 or later. |
+
+---
+
+## Downloading fortios-mcp
+
+Pick the artifact that matches how you want to run the server. All
+four sources publish the **same** version — the table below is just a
+quick chooser.
+
+| You want to … | Use this download |
+|---------------|-------------------|
+| Hack on the code, run via `uv` | [git clone](#git-clone-source-recommended) |
+| Pin to a tagged release without git | [Release tarball / zip](#release-tarball--zip) |
+| Run the HTTP transport in production | [Container image](#container-image) |
+| Install the CLI globally on a workstation | [Python package](#python-package-pipx--uv-tool) |
+
+### git clone (source, recommended)
+
+```bash
+git clone https://github.com/FreddyMcFett/fortios-mcp.git
+cd fortios-mcp
+```
+
+To track a specific release instead of `main`:
+
+```bash
+git clone --branch v0.3.0 --depth 1 https://github.com/FreddyMcFett/fortios-mcp.git
+```
+
+### Release tarball / zip
+
+Browse [GitHub Releases](https://github.com/FreddyMcFett/fortios-mcp/releases)
+and grab `Source code (tar.gz)` or `(zip)`, or download the latest tag
+straight from the CLI:
+
+```bash
+# Latest release (resolved via the GitHub redirect)
+curl -L -o fortios-mcp.tar.gz \
+  https://github.com/FreddyMcFett/fortios-mcp/archive/refs/heads/main.tar.gz
+
+# A pinned tag
+curl -L -o fortios-mcp-0.3.0.tar.gz \
+  https://github.com/FreddyMcFett/fortios-mcp/archive/refs/tags/v0.3.0.tar.gz
+
+tar -xzf fortios-mcp-0.3.0.tar.gz
+cd fortios-mcp-0.3.0
+```
+
+### Container image
+
+Pre-built multi-arch (amd64 + arm64) images are published to GHCR by
+the release pipeline:
+
+```bash
+# Latest stable
+docker pull ghcr.io/freddymcfett/fortios-mcp:latest
+
+# Pin a major / minor / exact version
+docker pull ghcr.io/freddymcfett/fortios-mcp:0
+docker pull ghcr.io/freddymcfett/fortios-mcp:0.3
+docker pull ghcr.io/freddymcfett/fortios-mcp:0.3.0
+```
+
+No git checkout is required to run the container — see
+[Docker / docker compose](#docker--docker-compose-http) for the
+runtime config. (`docker-compose.yml` and `.env.example` from the repo
+are the easiest starting point if you do want a checkout.)
+
+### Python package (pipx / uv tool)
+
+Install the CLI globally without managing a virtualenv:
+
+```bash
+# pipx (any tag / branch by appending @ref)
+pipx install git+https://github.com/FreddyMcFett/fortios-mcp.git
+pipx install git+https://github.com/FreddyMcFett/fortios-mcp.git@v0.3.0
+
+# or uv's tool installer
+uv tool install git+https://github.com/FreddyMcFett/fortios-mcp.git
+```
+
+Both paths put a `fortios-mcp` executable on your `$PATH`.
 
 ---
 
@@ -426,25 +520,120 @@ For the **HTTP** transport:
 
 ## Upgrading
 
+Releases are cut by `python-semantic-release` on every merge to
+`main`. Each tag publishes a GHCR image and a GitHub release in
+parallel, so all install paths reach the new version within a couple
+of minutes of the tag landing.
+
+### Fast upgrade — one-liners
+
+Run the line that matches your install. These are the "I just want the
+latest version" shortcuts; the per-installer sections below have the
+detail (pinning, rollback, restart commands).
+
+```bash
+# uv (cloned source)        — pull main + reinstall in-place
+cd fortios-mcp && git pull --ff-only && uv pip install -e . --upgrade
+
+# pipx                      — re-resolve from the same git source
+pipx upgrade fortios-mcp
+
+# uv tool                   — same idea
+uv tool upgrade fortios-mcp
+
+# Docker compose            — pull new image and restart only what changed
+docker compose pull && docker compose up -d
+
+# Plain Docker run          — pull + restart the container by name
+docker pull ghcr.io/freddymcfett/fortios-mcp:latest \
+  && docker restart fortios-mcp
+
+# systemd                   — git pull + reinstall + restart unit
+sudo -u fortiosmcp git -C /opt/fortios-mcp pull --ff-only \
+  && sudo -u fortiosmcp /opt/fortios-mcp/.venv/bin/pip install -U /opt/fortios-mcp \
+  && sudo systemctl restart fortios-mcp
+```
+
+> Restart your MCP **client** too (Claude Desktop / Claude Code) when
+> using the stdio transport — it spawns the server subprocess, so a
+> client restart is what actually picks up the new code.
+
 ### Local (uv / pipx)
 
 ```bash
-# uv
-cd fortios-mcp && git pull && uv pip install -e .
+# uv (editable checkout)
+cd fortios-mcp
+git pull --ff-only
+uv pip install -e . --upgrade
 
-# pipx
+# pipx — track main
 pipx upgrade fortios-mcp
+
+# pipx — jump to a specific tag
+pipx install --force git+https://github.com/FreddyMcFett/fortios-mcp.git@v0.3.1
 ```
+
+`--ff-only` keeps the upgrade safe: if you have local commits the pull
+fails loudly instead of merging.
 
 ### Docker
 
 ```bash
-docker compose pull
-docker compose up -d
+docker compose pull        # downloads the new image layer(s)
+docker compose up -d       # recreates only containers whose image changed
+docker image prune -f      # optional — drop the now-dangling old image
 ```
 
-Tag pinning (`ghcr.io/freddymcfett/fortios-mcp:0.3`) freezes you to a
-minor; `latest` always follows `main`.
+Health check after the bounce:
+
+```bash
+docker compose logs --tail 50 -f
+curl -fsS -H "Authorization: Bearer $MCP_AUTH_TOKEN" \
+  http://localhost:8002/  >/dev/null && echo OK
+```
+
+### systemd
+
+```bash
+sudo -u fortiosmcp git -C /opt/fortios-mcp pull --ff-only
+sudo -u fortiosmcp /opt/fortios-mcp/.venv/bin/pip install -U /opt/fortios-mcp
+sudo systemctl restart fortios-mcp
+sudo systemctl status fortios-mcp --no-pager
+```
+
+### Pinning a version
+
+`latest` follows `main`. For predictable upgrades pin a tag:
+
+| Tag | Tracks |
+|-----|--------|
+| `ghcr.io/freddymcfett/fortios-mcp:0` | latest `0.x.y` |
+| `ghcr.io/freddymcfett/fortios-mcp:0.3` | latest `0.3.x` (recommended for prod) |
+| `ghcr.io/freddymcfett/fortios-mcp:0.3.1` | exact build |
+| `ghcr.io/freddymcfett/fortios-mcp:latest` | every merge to `main` |
+
+For pipx / uv tool, append `@vX.Y.Z` to the git URL when installing.
+
+### Rollback
+
+If a new version misbehaves, drop back to the previous one. The
+write-guard means a rollback can never *cause* a config change on the
+FortiGate.
+
+```bash
+# Docker — re-pin to the previous tag and bounce
+docker compose pull ghcr.io/freddymcfett/fortios-mcp:0.3.0
+docker compose up -d
+
+# uv (cloned source)
+cd fortios-mcp && git checkout v0.3.0 && uv pip install -e . --upgrade
+
+# pipx
+pipx install --force git+https://github.com/FreddyMcFett/fortios-mcp.git@v0.3.0
+```
+
+Tag history lives in [GitHub Releases](https://github.com/FreddyMcFett/fortios-mcp/releases)
+and matches the entries in [`CHANGELOG.md`](../CHANGELOG.md).
 
 ### FortiOS version bumps
 
