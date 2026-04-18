@@ -1,6 +1,31 @@
 # CHANGELOG
 
 
+## v0.1.2 (2026-04-18)
+
+### Bug Fixes
+
+- **ci**: Resolve mypy and test failures, pin support to FortiOS 7.6.6
+  ([`8a0a5ac`](https://github.com/FreddyMcFett/fortios-mcp/commit/8a0a5ac372431b4a55fa4d71d382efcb85784af7))
+
+- client.probe: cast monitor_get result to dict to satisfy warn_return_any. - client: add
+  SUPPORTED_FORTIOS_VERSION constant (7.6.6) and log a warning on first probe when the FortiGate
+  reports a different version. - tests/test_client: avoid duplicate max_retries kwarg so 429-retry
+  test can pass through overrides cleanly. - tests/test_config: isolate test_defaults_are_safe from
+  the session-wide env vars set by the bootstrap fixture (and by CI), otherwise
+  FORTIOS_VERIFY_SSL=false leaks into Settings() defaults. - docs: state explicitly that FortiOS
+  7.6.6 is the only supported version in README and docs/installation.md.
+
+### Documentation
+
+- **installation**: Add download section and fast-upgrade one-liners
+  ([`569780d`](https://github.com/FreddyMcFett/fortios-mcp/commit/569780d09cf2475bad6aa701a6ced502ea3d2da2))
+
+Adds a dedicated Downloading section that chooses between git clone, release tarball, GHCR image,
+  and pipx/uv tool installs. Expands the Upgrading section with one-liner shortcuts per install
+  path, version pinning guidance, and a rollback recipe.
+
+
 ## v0.1.1 (2026-04-18)
 
 ### Bug Fixes
