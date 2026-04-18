@@ -1,6 +1,40 @@
 # CHANGELOG
 
 
+## v0.1.1 (2026-04-18)
+
+### Bug Fixes
+
+- **lint**: Resolve ruff violations flagged by CI
+  ([`8f196cf`](https://github.com/FreddyMcFett/fortios-mcp/commit/8f196cf2b2aa70d04f481ffca6ba9d8dd4b40cf1))
+
+CI failed on the ruff lint step. This fixes all 16 violations:
+
+- SIM105: use contextlib.suppress for PackageNotFoundError in __init__. - UP037 (x2): drop quoted
+  self-type annotations (from __future__ imports already make them forward refs). - UP038: merge
+  isinstance tuple into a union type in client._request. - UP035 (x3): import
+  AsyncIterator/Awaitable/Callable/Iterable from collections.abc instead of typing. - RUF002 (x3):
+  replace en dashes with hyphens in numeric-range docstrings where ruff flagged them as ambiguous. -
+  RUF100 (x4) + I001 (x2): drop unused 'noqa: E402' directives and reorganise the conftest imports
+  so env bootstrapping happens inside the session fixture, leaving module-top imports clean.
+
+Also runs ruff format across the codebase so 'ruff format --check' passes in CI.
+
+### Documentation
+
+- Add architecture diagram, detailed install guide, feature-doc rule
+  ([`8691a1d`](https://github.com/FreddyMcFett/fortios-mcp/commit/8691a1d6b9dd0ad4eb0aa10c821fa57b3dafada0))
+
+- New docs/architecture.svg — clean SVG architecture diagram with Fortinet-inspired styling (red
+  chassis, port row, endpoint list); replaces the ASCII sketch in the README. - New
+  docs/installation.md — long-form install & usage guide covering prerequisites, FortiGate token
+  setup (RO + RW), uv / pipx / Docker / systemd paths, Claude Desktop and Claude Code wiring, VDOM
+  handling, TLS hardening, upgrades, and troubleshooting. - CLAUDE.md §10a and CONTRIBUTING.md:
+  require every feature-changing PR to ship matching doc updates (tool docstring, README catalog,
+  installation guide, and architecture diagram where relevant). - README.md: embed the new SVG, add
+  a documentation map, and point the quick-start at the detailed guide.
+
+
 ## v0.1.0 (2026-04-18)
 
 ### Chores
