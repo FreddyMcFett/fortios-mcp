@@ -22,6 +22,36 @@ uv pip install -e ".[dev]"
 - [ ] New tool is listed in the catalogue in `README.md`
 - [ ] Every write tool is decorated with `@require_writes` and listed in
       `tests/test_write_guard.py::EXPECTED_WRITE_TOOLS`
+- [ ] **Docs updated for every feature change** — see
+      [docs requirement](#documentation-required-for-every-feature-change)
+
+## Documentation required for every feature change
+
+Any PR that adds or changes a user-visible feature (new tool, new
+env-var, new transport option, changed tool signature, changed
+default) MUST ship the matching doc updates in the same PR. Reviewers
+reject feature PRs with stale docs.
+
+For a new tool this means, at minimum:
+
+- A Google-style docstring on the tool function describing endpoint,
+  VDOM handling, arguments, return shape, and whether it is
+  write-guarded. MCP clients surface this to the model at runtime.
+- An entry in the **Tool catalog** table in [`README.md`](README.md)
+  (trailing `*` if write-guarded).
+- Updates to [`docs/installation.md`](docs/installation.md) if the
+  change affects configuration, installation steps, usage examples,
+  or troubleshooting.
+- A new architecture diagram
+  ([`docs/architecture.svg`](docs/architecture.svg)) only when the
+  change alters the high-level architecture — not for normal tool
+  additions.
+
+Do **not** edit `CHANGELOG.md` by hand — `python-semantic-release`
+writes it from your Conventional Commit message. Your commit message
+is the changelog entry, so be precise. See
+[`CLAUDE.md` §10a](CLAUDE.md#10a-documentation-requirement-for-feature-changes)
+for the full rule.
 
 ## Commit messages — Conventional Commits
 

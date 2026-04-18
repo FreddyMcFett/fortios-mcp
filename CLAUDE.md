@@ -213,7 +213,44 @@ When adding a mutating tool:
 5. Decorate with `@mcp.tool()` (and `@require_writes` if it mutates).
 6. Add a unit test in the matching `tests/test_*_tools.py`.
 7. Add the tool to the catalog table in `README.md`.
-8. Commit with `feat(<area>): <name>` so the next release picks it up.
+8. **Document the feature** — see §10a below. PRs that add or change a
+   feature without touching the docs are rejected.
+9. Commit with `feat(<area>): <name>` so the next release picks it up.
+
+## 10a. Documentation requirement for feature changes
+
+Every user-visible change (`feat:`, `feat!:`, behaviour-changing
+`fix:`, or anything that alters a tool's inputs / outputs / side
+effects) MUST update the documentation in the same PR. Reviewers
+check this explicitly; a feature change with no doc update is not
+mergeable.
+
+At minimum, a feature PR updates:
+
+1. **Tool-level docstring.** Google-style, describes FortiOS semantics
+   (endpoint, VDOM handling, whether it is write-guarded, notable
+   parameters). This is what the LLM sees at runtime.
+2. **`README.md` catalog table.** Add the tool name in the correct
+   section (System / Firewall / Routing / …). Write-guarded tools
+   carry a trailing `*`.
+3. **`docs/installation.md`.** Update the usage examples, env-var
+   table, or troubleshooting entries if the change affects any of
+   them.
+4. **`docs/architecture.svg`.** Regenerate only when the change alters
+   the high-level architecture (new transport, new client layer, new
+   subsystem). Individual tool additions do not need a diagram
+   update.
+5. **`CHANGELOG.md`.** Do **not** edit by hand.
+   Conventional-commit messages drive `python-semantic-release`,
+   which rewrites the changelog on release — your commit message *is*
+   the changelog entry, so make it precise.
+6. **Breaking changes.** Use `feat!:` or a `BREAKING CHANGE:` footer,
+   spell out the migration path in the commit body, and add a
+   `## Migration` note to `docs/installation.md` if operators need to
+   take action on upgrade.
+
+Rule of thumb: if a user's behaviour, configuration, or output would
+change after pulling your PR, the docs must change in the same PR.
 
 ---
 
