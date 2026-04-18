@@ -14,15 +14,10 @@ from typing import Any
 import httpx
 import pytest
 
-os.environ.setdefault("FORTIOS_HOST", "fake-fortigate.local")
-os.environ.setdefault("FORTIOS_API_TOKEN", "test-token")
-os.environ.setdefault("FORTIOS_VERIFY_SSL", "false")
-
-from fortios_mcp.api.client import FortiOSClient  # noqa: E402
-from fortios_mcp.server import build_server  # noqa: E402
-from fortios_mcp.tools import set_client  # noqa: E402
-from fortios_mcp.utils.config import reset_settings_cache  # noqa: E402
-
+from fortios_mcp.api.client import FortiOSClient
+from fortios_mcp.server import build_server
+from fortios_mcp.tools import set_client
+from fortios_mcp.utils.config import reset_settings_cache
 
 # ---------------------------------------------------------------------------
 # Mock transport helpers
@@ -64,6 +59,7 @@ def mock_transport_factory() -> Callable[[Handler], httpx.MockTransport]:
 # Client / server fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def default_handler() -> Handler:
     """Handler that returns a generic success for any request."""
@@ -97,6 +93,9 @@ async def client(default_handler: Handler) -> AsyncIterator[FortiOSClient]:
 @pytest.fixture(scope="session", autouse=True)
 def _bootstrap_server() -> None:
     """Ensure build_server() runs once so tool modules can import."""
+    os.environ.setdefault("FORTIOS_HOST", "fake-fortigate.local")
+    os.environ.setdefault("FORTIOS_API_TOKEN", "test-token")
+    os.environ.setdefault("FORTIOS_VERIFY_SSL", "false")
     reset_settings_cache()
     build_server()
 

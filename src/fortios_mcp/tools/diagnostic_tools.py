@@ -47,11 +47,7 @@ async def start_packet_capture(
 async def stop_packet_capture(session_id: int) -> dict[str, Any]:
     """Stop a running packet sniffer session. Write-guarded."""
     try:
-        return ok(
-            await get_client().service_execute(
-                "sniffer/stop", {"session_id": session_id}
-            )
-        )
+        return ok(await get_client().service_execute("sniffer/stop", {"session_id": session_id}))
     except FortiOSError as exc:
         return err(exc, tool="stop_packet_capture")
 
@@ -60,11 +56,7 @@ async def stop_packet_capture(session_id: int) -> dict[str, Any]:
 async def download_packet_capture(session_id: int) -> dict[str, Any]:
     """Return the download descriptor for a captured PCAP."""
     try:
-        return ok(
-            await get_client().monitor_get(
-                f"system/sniffer/download/{session_id}"
-            )
-        )
+        return ok(await get_client().monitor_get(f"system/sniffer/download/{session_id}"))
     except FortiOSError as exc:
         return err(exc, tool="download_packet_capture")
 
@@ -81,7 +73,7 @@ async def ping(
     Args:
         destination: Target IP or hostname.
         interface: Source interface name (optional).
-        count: Number of packets (1–100).
+        count: Number of packets (1-100).
     """
     try:
         body: dict[str, Any] = {"host": destination, "count": max(1, min(count, 100))}
@@ -103,8 +95,6 @@ async def traceroute(
         body: dict[str, Any] = {"host": destination}
         if interface:
             body["interface"] = interface
-        return ok(
-            await get_client().monitor_post("network/debug/traceroute", body, vdom=vdom)
-        )
+        return ok(await get_client().monitor_post("network/debug/traceroute", body, vdom=vdom))
     except FortiOSError as exc:
         return err(exc, tool="traceroute")

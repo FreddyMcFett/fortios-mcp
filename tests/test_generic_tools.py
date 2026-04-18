@@ -19,9 +19,7 @@ async def test_cmdb_get_rejects_traversal(tool_client) -> None:  # type: ignore[
 
 
 async def test_cmdb_get_forwards_filter_params(tool_client) -> None:  # type: ignore[no-untyped-def]
-    result = await generic_tools.cmdb_get(
-        path="firewall/policy", filter="name==HTTPS", count=10
-    )
+    result = await generic_tools.cmdb_get(path="firewall/policy", filter="name==HTTPS", count=10)
     assert result["status"] == "success"
 
 
@@ -43,7 +41,5 @@ async def test_log_search_rejects_bad_source(tool_client) -> None:  # type: igno
 
 
 async def test_monitor_get_passes_params(tool_client) -> None:  # type: ignore[no-untyped-def]
-    out = await generic_tools.monitor_get(
-        path="firewall/session", params={"count": 1}
-    )
+    out = await generic_tools.monitor_get(path="firewall/session", params={"count": 1})
     assert out["status"] == "success"

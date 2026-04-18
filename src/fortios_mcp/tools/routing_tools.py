@@ -24,9 +24,7 @@ async def list_static_routes(vdom: str | None = None) -> dict[str, Any]:
 
 @mcp.tool()
 @require_writes
-async def add_static_route(
-    body: dict[str, Any], vdom: str | None = None
-) -> dict[str, Any]:
+async def add_static_route(body: dict[str, Any], vdom: str | None = None) -> dict[str, Any]:
     """Create a static route. Write-guarded."""
     try:
         return ok(await get_client().cmdb_add("router/static", body, vdom=vdom))
@@ -39,17 +37,13 @@ async def add_static_route(
 async def delete_static_route(seq_num: int, vdom: str | None = None) -> dict[str, Any]:
     """Delete a static route by its sequence number. Write-guarded."""
     try:
-        return ok(
-            await get_client().cmdb_delete(f"router/static/{seq_num}", vdom=vdom)
-        )
+        return ok(await get_client().cmdb_delete(f"router/static/{seq_num}", vdom=vdom))
     except FortiOSError as exc:
         return err(exc, tool="delete_static_route")
 
 
 @mcp.tool()
-async def get_routing_table(
-    vdom: str | None = None, ip_version: str = "ipv4"
-) -> dict[str, Any]:
+async def get_routing_table(vdom: str | None = None, ip_version: str = "ipv4") -> dict[str, Any]:
     """Return the active routing table (FIB)."""
     try:
         if ip_version not in {"ipv4", "ipv6"}:

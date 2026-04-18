@@ -82,7 +82,7 @@ class FortiOSClient:
         cls,
         settings: Settings,
         transport: httpx.AsyncBaseTransport | None = None,
-    ) -> "FortiOSClient":
+    ) -> FortiOSClient:
         settings.require_credentials()
         return cls(
             host=settings.FORTIOS_HOST,
@@ -98,7 +98,7 @@ class FortiOSClient:
     async def close(self) -> None:
         await self._client.aclose()
 
-    async def __aenter__(self) -> "FortiOSClient":
+    async def __aenter__(self) -> FortiOSClient:
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -262,7 +262,7 @@ class FortiOSClient:
                 return self._parse_success(response, method, url)
 
             parsed = self._parse_failure(response, method, url)
-            if isinstance(parsed, (RateLimitError, ServerError)) and attempt <= self.max_retries:
+            if isinstance(parsed, RateLimitError | ServerError) and attempt <= self.max_retries:
                 logger.warning(
                     "Transient FortiOS error %s on %s %s (attempt %d): %s",
                     response.status_code,

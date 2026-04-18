@@ -71,9 +71,7 @@ async def list_dlp_profiles(vdom: str | None = None) -> dict[str, Any]:
 async def list_ssl_inspection_profiles(vdom: str | None = None) -> dict[str, Any]:
     """List SSL/TLS inspection profiles."""
     try:
-        return ok(
-            await get_client().cmdb_get("firewall/ssl-ssh-profile", vdom=vdom)
-        )
+        return ok(await get_client().cmdb_get("firewall/ssl-ssh-profile", vdom=vdom))
     except FortiOSError as exc:
         return err(exc, tool="list_ssl_inspection_profiles")
 

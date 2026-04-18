@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fortios_mcp.api.client import FortiOSClient
 from fortios_mcp.utils.config import get_settings

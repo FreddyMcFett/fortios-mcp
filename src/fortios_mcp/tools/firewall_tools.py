@@ -29,18 +29,14 @@ async def list_firewall_policies(
 async def get_firewall_policy(policyid: int, vdom: str | None = None) -> dict[str, Any]:
     """Return a single firewall policy by ID."""
     try:
-        return ok(
-            await get_client().cmdb_get(f"firewall/policy/{policyid}", vdom=vdom)
-        )
+        return ok(await get_client().cmdb_get(f"firewall/policy/{policyid}", vdom=vdom))
     except FortiOSError as exc:
         return err(exc, tool="get_firewall_policy")
 
 
 @mcp.tool()
 @require_writes
-async def add_firewall_policy(
-    body: dict[str, Any], vdom: str | None = None
-) -> dict[str, Any]:
+async def add_firewall_policy(body: dict[str, Any], vdom: str | None = None) -> dict[str, Any]:
     """Create a new firewall policy. Write-guarded.
 
     Args:
@@ -61,25 +57,17 @@ async def update_firewall_policy(
 ) -> dict[str, Any]:
     """Update an existing firewall policy. Write-guarded."""
     try:
-        return ok(
-            await get_client().cmdb_set(
-                f"firewall/policy/{policyid}", body, vdom=vdom
-            )
-        )
+        return ok(await get_client().cmdb_set(f"firewall/policy/{policyid}", body, vdom=vdom))
     except FortiOSError as exc:
         return err(exc, tool="update_firewall_policy")
 
 
 @mcp.tool()
 @require_writes
-async def delete_firewall_policy(
-    policyid: int, vdom: str | None = None
-) -> dict[str, Any]:
+async def delete_firewall_policy(policyid: int, vdom: str | None = None) -> dict[str, Any]:
     """Delete a firewall policy by ID. Write-guarded."""
     try:
-        return ok(
-            await get_client().cmdb_delete(f"firewall/policy/{policyid}", vdom=vdom)
-        )
+        return ok(await get_client().cmdb_delete(f"firewall/policy/{policyid}", vdom=vdom))
     except FortiOSError as exc:
         return err(exc, tool="delete_firewall_policy")
 

@@ -36,9 +36,7 @@ async def test_schema_search_endpoints() -> None:
 
 async def test_schema_describe_endpoint() -> None:
     # pick a known-existing endpoint from the Monitor/system file
-    listing = await schema_tools.list_endpoints(
-        api_type="Monitor", category="system"
-    )
+    listing = await schema_tools.list_endpoints(api_type="Monitor", category="system")
     assert listing["status"] == "success"
     eps = listing["data"]["endpoints"]
     assert eps

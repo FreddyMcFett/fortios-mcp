@@ -23,7 +23,7 @@ async def list_sessions(
 
     Args:
         filter: FortiOS session filter, e.g. ``"srcip==10.0.0.1"``.
-        count: Maximum rows to return (1–1000).
+        count: Maximum rows to return (1-1000).
     """
     try:
         params: dict[str, Any] = {"count": max(1, min(count, 1000))}
@@ -36,9 +36,7 @@ async def list_sessions(
 
 @mcp.tool()
 @require_writes
-async def kill_session(
-    session_id: int, vdom: str | None = None
-) -> dict[str, Any]:
+async def kill_session(session_id: int, vdom: str | None = None) -> dict[str, Any]:
     """Terminate a single firewall session. Write-guarded."""
     try:
         return ok(
@@ -53,9 +51,7 @@ async def kill_session(
 
 
 @mcp.tool()
-async def get_top_sources(
-    vdom: str | None = None, count: int = 25
-) -> dict[str, Any]:
+async def get_top_sources(vdom: str | None = None, count: int = 25) -> dict[str, Any]:
     """Return top source IPs by bandwidth (FortiView)."""
     try:
         return ok(
@@ -70,9 +66,7 @@ async def get_top_sources(
 
 
 @mcp.tool()
-async def get_top_destinations(
-    vdom: str | None = None, count: int = 25
-) -> dict[str, Any]:
+async def get_top_destinations(vdom: str | None = None, count: int = 25) -> dict[str, Any]:
     """Return top destination IPs by bandwidth (FortiView)."""
     try:
         return ok(
@@ -117,9 +111,7 @@ async def get_fortiguard_status() -> dict[str, Any]:
 async def get_sdwan_health(vdom: str | None = None) -> dict[str, Any]:
     """Return SD-WAN health-check member status."""
     try:
-        return ok(
-            await get_client().monitor_get("virtual-wan/health-check", vdom=vdom)
-        )
+        return ok(await get_client().monitor_get("virtual-wan/health-check", vdom=vdom))
     except FortiOSError as exc:
         return err(exc, tool="get_sdwan_health")
 
