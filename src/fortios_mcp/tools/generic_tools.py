@@ -64,9 +64,7 @@ async def cmdb_get(
 
 @mcp.tool()
 @require_writes
-async def cmdb_set(
-    path: str, body: dict[str, Any], vdom: str | None = None
-) -> dict[str, Any]:
+async def cmdb_set(path: str, body: dict[str, Any], vdom: str | None = None) -> dict[str, Any]:
     """Replace a CMDB resource (HTTP PUT). Write-guarded."""
     try:
         validate_cmdb_path(path)
@@ -78,9 +76,7 @@ async def cmdb_set(
 
 @mcp.tool()
 @require_writes
-async def cmdb_add(
-    path: str, body: dict[str, Any], vdom: str | None = None
-) -> dict[str, Any]:
+async def cmdb_add(path: str, body: dict[str, Any], vdom: str | None = None) -> dict[str, Any]:
     """Create a CMDB resource (HTTP POST). Write-guarded."""
     try:
         validate_cmdb_path(path)
@@ -92,9 +88,7 @@ async def cmdb_add(
 
 @mcp.tool()
 @require_writes
-async def cmdb_update(
-    path: str, body: dict[str, Any], vdom: str | None = None
-) -> dict[str, Any]:
+async def cmdb_update(path: str, body: dict[str, Any], vdom: str | None = None) -> dict[str, Any]:
     """Partial-update a CMDB resource (HTTP PUT on a specific key). Write-guarded."""
     try:
         validate_cmdb_path(path)
@@ -154,7 +148,7 @@ async def log_search(
             ``"security"`` etc.
         filter: FortiOS log filter expression.
         start: Offset for pagination.
-        rows: Number of rows to return (1–1000).
+        rows: Number of rows to return (1-1000).
     """
     try:
         if source not in {"disk", "memory", "fortianalyzer", "forticloud"}:
@@ -162,9 +156,7 @@ async def log_search(
         params: dict[str, Any] = {"start": start, "rows": max(1, min(rows, 1000))}
         if filter:
             params["filter"] = filter
-        data = await get_client().log_get(
-            f"{source}/{log_type}", vdom=vdom, params=params
-        )
+        data = await get_client().log_get(f"{source}/{log_type}", vdom=vdom, params=params)
         return ok(data)
     except (FortiOSError, ValueError) as exc:
         return err(exc, tool="log_search")

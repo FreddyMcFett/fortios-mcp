@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+
 import pytest
 
 from fortios_mcp.tools import (
@@ -60,7 +61,8 @@ def _collect_tools() -> dict[str, object]:
 def test_every_expected_tool_is_guarded() -> None:
     tools = _collect_tools()
     missing = [
-        name for name in EXPECTED_WRITE_TOOLS
+        name
+        for name in EXPECTED_WRITE_TOOLS
         if not getattr(tools.get(name), "__fortios_requires_writes__", False)
     ]
     assert not missing, f"Write-guard missing on: {missing}"

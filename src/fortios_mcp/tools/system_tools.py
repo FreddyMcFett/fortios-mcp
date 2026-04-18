@@ -69,9 +69,7 @@ async def get_interface_status() -> dict[str, Any]:
 
 @mcp.tool()
 @require_writes
-async def set_interface(
-    name: str, body: dict[str, Any], vdom: str | None = None
-) -> dict[str, Any]:
+async def set_interface(name: str, body: dict[str, Any], vdom: str | None = None) -> dict[str, Any]:
     """Update an interface's CMDB entry. Write-guarded."""
     try:
         return ok(await get_client().cmdb_set(f"system/interface/{name}", body, vdom=vdom))

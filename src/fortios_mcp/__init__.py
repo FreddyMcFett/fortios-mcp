@@ -1,12 +1,11 @@
 """FortiOS MCP server package."""
 
+from contextlib import suppress
 from importlib.metadata import PackageNotFoundError, version
 
 __version__ = "0.1.0"
 
-try:
+with suppress(PackageNotFoundError):
     __version__ = version("fortios-mcp")
-except PackageNotFoundError:
-    pass
 
 __all__ = ["__version__"]

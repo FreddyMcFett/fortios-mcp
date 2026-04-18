@@ -103,9 +103,7 @@ class Settings(BaseSettings):
         if not self.FORTIOS_API_TOKEN:
             missing.append("FORTIOS_API_TOKEN")
         if missing:
-            raise RuntimeError(
-                "Missing required environment variables: " + ", ".join(missing)
-            )
+            raise RuntimeError("Missing required environment variables: " + ", ".join(missing))
 
     def configure_logging(self) -> None:
         """Apply logging configuration globally."""

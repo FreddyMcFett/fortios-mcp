@@ -42,9 +42,7 @@ async def get_ipsec_tunnel_status(vdom: str | None = None) -> dict[str, Any]:
 
 @mcp.tool()
 @require_writes
-async def bring_up_ipsec_tunnel(
-    phase1_name: str, vdom: str | None = None
-) -> dict[str, Any]:
+async def bring_up_ipsec_tunnel(phase1_name: str, vdom: str | None = None) -> dict[str, Any]:
     """Bring an IPsec tunnel up. Write-guarded."""
     try:
         return ok(
@@ -60,9 +58,7 @@ async def bring_up_ipsec_tunnel(
 
 @mcp.tool()
 @require_writes
-async def bring_down_ipsec_tunnel(
-    phase1_name: str, vdom: str | None = None
-) -> dict[str, Any]:
+async def bring_down_ipsec_tunnel(phase1_name: str, vdom: str | None = None) -> dict[str, Any]:
     """Bring an IPsec tunnel down. Write-guarded."""
     try:
         return ok(

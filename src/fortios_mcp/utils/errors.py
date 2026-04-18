@@ -50,7 +50,9 @@ class ConnectionFailed(FortiOSError):
     """Network-level failure contacting the FortiGate."""
 
 
-def parse_http_error(status: int, message: str, operation: str, payload: Any = None) -> FortiOSError:
+def parse_http_error(
+    status: int, message: str, operation: str, payload: Any = None
+) -> FortiOSError:
     """Map an HTTP status to the most specific FortiOSError subclass."""
     kwargs = {"status_code": status, "operation": operation, "payload": payload}
     if status in (401, 403):
