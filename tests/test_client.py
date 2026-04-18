@@ -14,13 +14,13 @@ from fortios_mcp.utils.errors import (
 )
 
 
-def _make_client(handler: object, **overrides: object) -> FortiOSClient:
+def _make_client(handler: object, *, max_retries: int = 0, **overrides: object) -> FortiOSClient:
     return FortiOSClient(
         host="fgt.example",
         api_token="secret",
         verify_ssl=False,
         timeout=5,
-        max_retries=0,
+        max_retries=max_retries,
         transport=httpx.MockTransport(handler),  # type: ignore[arg-type]
         **overrides,  # type: ignore[arg-type]
     )
