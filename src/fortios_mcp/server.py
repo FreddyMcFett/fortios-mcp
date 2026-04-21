@@ -154,14 +154,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     logger.info("Launching FortiOS MCP server in %s mode", mode)
-    if mode == "stdio":
-        mcp.run(transport="stdio")
-    elif mode == "http":
-        mcp.settings.host = settings.MCP_SERVER_HOST
-        mcp.settings.port = settings.MCP_SERVER_PORT
-        mcp.run(transport="streamable-http")
-    else:  # pragma: no cover - guarded by validator
-        raise RuntimeError(f"Unknown MCP_SERVER_MODE: {mode}")
+    try:
+        if mode == "stdio":
+            mcp.run(transport="stdio")
+        elif mode == "http":
+            mcp.settings.host = settings.MCP_SERVER_HOST
+            mcp.settings.port = settings.MCP_SERVER_PORT
+            mcp.run(transport="streamable-http")
+        else:  # pragma: no cover - guarded by validator
+            raise RuntimeError(f"Unknown MCP_SERVER_MODE: {mode}")
+    except KeyboardInterrupt:
+        # anyio re-raises KeyboardInterrupt out of the event loop on SIGINT;
+        # swallow it here so Ctrl+C yields a clean exit instead of a traceback.
+        logger.info("Interrupted by user; exiting")
+        return 130
     return 0
 
 

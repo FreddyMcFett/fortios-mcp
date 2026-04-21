@@ -76,3 +76,27 @@ def test_arg_parser_structure() -> None:
     parser = _build_arg_parser()
     actions = {a.dest for a in parser._actions}
     assert {"help", "version", "transport", "check"}.issubset(actions)
+
+
+def test_keyboard_interrupt_exits_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Ctrl+C during `mcp.run` must produce a clean exit (code 130), not a traceback."""
+    monkeypatch.setenv("FORTIOS_HOST", "fake-fortigate.local")
+    monkeypatch.setenv("FORTIOS_API_TOKEN", "test-token")
+    monkeypatch.setenv("MCP_SERVER_MODE", "stdio")
+    reset_settings_cache()
+
+    from fortios_mcp import server
+
+    def _raise_keyboard_interrupt(*_args: object, **_kwargs: object) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(server.mcp, "run", _raise_keyboard_interrupt)
+    try:
+        assert main([]) == 130
+        err = capsys.readouterr().err
+        assert "Traceback" not in err
+    finally:
+        reset_settings_cache()
