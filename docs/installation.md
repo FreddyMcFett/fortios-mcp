@@ -29,6 +29,7 @@ transport, VDOMs, the write-guard, troubleshooting, and upgrades.
 6. [Step 3 — Configure environment variables](#step-3--configure-environment-variables)
 7. [Step 4 — Connect an MCP client](#step-4--connect-an-mcp-client)
    - [Claude Desktop](#claude-desktop)
+     - [Connecting Claude Desktop to the HTTP endpoint](#connecting-claude-desktop-to-the-http-endpoint)
    - [Claude Code (CLI)](#claude-code-cli)
    - [Generic MCP client (HTTP)](#generic-mcp-client-http)
 8. [Using the server](#using-the-server)
@@ -396,6 +397,44 @@ Edit `claude_desktop_config.json`:
 Restart Claude Desktop, open a new chat, and you should see `fortios`
 listed in the MCP servers panel.
 
+#### Connecting Claude Desktop to the HTTP endpoint
+
+If you run the server under Docker / systemd and want Claude Desktop
+to talk to it over HTTP instead of spawning a local subprocess, use
+the **Custom Connectors** UI (Settings → Connectors → Add custom
+connector).
+
+> **Claude Desktop only accepts `https://` URLs here.** A plain
+> `http://localhost:8002/` URL is rejected by the connector form —
+> even for loopback. You must put a TLS terminator in front of the
+> server and point Claude Desktop at the `https://` URL.
+
+Two common ways to get an `https://` URL:
+
+1. **Local reverse proxy with a trusted cert.** Run Caddy / Nginx /
+   Traefik on the same host, terminate TLS with a cert Claude Desktop
+   trusts (a real cert via Let's Encrypt, or a local CA via
+   [`mkcert`](https://github.com/FiloSottile/mkcert)), and proxy to
+   `http://127.0.0.1:8002/`. Example Caddyfile:
+
+   ```caddy
+   fortios-mcp.local {
+     reverse_proxy 127.0.0.1:8002
+   }
+   ```
+
+   Then add `https://fortios-mcp.local/` as the custom connector URL
+   and supply `MCP_AUTH_TOKEN` as the bearer token.
+
+2. **Tunnel / public HTTPS.** Expose the endpoint through a service
+   that already provides HTTPS (Cloudflare Tunnel, Tailscale Funnel,
+   ngrok). Use the resulting `https://…` URL in Claude Desktop. Keep
+   `MCP_AUTH_TOKEN` set — the tunnel only protects transport, not
+   authorization.
+
+In both cases set `MCP_ALLOWED_HOSTS` to the exact hostname Claude
+Desktop connects to so the server rejects DNS-rebinding attempts.
+
 ### Claude Code (CLI)
 
 Register the server in your project (or user-level) MCP config — for
@@ -434,8 +473,17 @@ Authorization: Bearer <MCP_AUTH_TOKEN>
 ```
 
 Any MCP client that supports HTTP transport (LangGraph, LlamaIndex,
-custom SDK) can target this URL. Use a TLS-terminating proxy (Caddy,
-Nginx, Traefik) for anything beyond localhost.
+custom SDK) can target this URL directly. Use a TLS-terminating proxy
+(Caddy, Nginx, Traefik) for anything beyond localhost.
+
+> **Note for Claude Desktop / Claude Code custom-connector users:**
+> those clients only accept `https://` URLs when adding a remote MCP
+> server. The `http://…:8002/` endpoint shown above is for clients
+> that talk directly to the container (LangGraph, custom SDKs, a
+> local test with `curl`). To connect Claude Desktop or Claude Code
+> to the HTTP endpoint, front the server with TLS and use the
+> resulting `https://` URL — see
+> [Connecting Claude Desktop to the HTTP endpoint](#connecting-claude-desktop-to-the-http-endpoint).
 
 ---
 
@@ -520,7 +568,9 @@ For the **HTTP** transport:
 - Set `MCP_AUTH_TOKEN` to a strong random value. The server rejects
   requests without it.
 - Put a TLS-terminating reverse proxy in front of the container. Do
-  **not** expose port 8002 directly to untrusted networks.
+  **not** expose port 8002 directly to untrusted networks. This is
+  also a hard requirement for Claude Desktop / Claude Code custom
+  connectors, which refuse `http://` URLs even on loopback.
 - Set `MCP_ALLOWED_HOSTS` to the exact hostnames clients use; this
   rejects DNS-rebinding attacks.
 - Rotate `FORTIOS_API_TOKEN` on the FortiGate periodically —

@@ -93,6 +93,15 @@ docker compose up -d
 # MCP streamable HTTP endpoint → http://localhost:8002/
 ```
 
+> Claude Desktop and Claude Code only accept `https://` URLs in the
+> custom-connector UI, so the raw `http://localhost:8002/` endpoint
+> above works for direct HTTP clients (LangGraph, `curl`, custom
+> SDKs) but not as a Claude Desktop connector. Front the container
+> with a TLS-terminating proxy (Caddy / Nginx / Tailscale Funnel /
+> Cloudflare Tunnel) and point Claude Desktop at the resulting
+> `https://` URL — see
+> [docs/installation.md](docs/installation.md#connecting-claude-desktop-to-the-http-endpoint).
+
 ### 4. Hook it up to Claude Desktop
 
 `claude_desktop_config.json`:
