@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.2.0 (2026-04-21)
+
+### Features
+
+- **cli**: Add --help/--version/--check flags and fail fast on missing creds
+  ([`33b2cba`](https://github.com/FreddyMcFett/fortios-mcp/commit/33b2cbaa0b776ada396beb691c79524eb785d12c))
+
+`uv run fortios-mcp --help` (the sanity check in docs/installation.md) used to be silently ignored —
+  main() took no arguments, so the server started, connected through _lifespan, and only then raised
+  `RuntimeError: Missing required environment variables ...` buried inside an anyio ExceptionGroup
+  traceback.
+
+Parse argv with argparse and validate credentials in main() before building the transport. Missing
+  env vars now exit 2 with a short stderr message that points at docs/installation.md, and --help /
+  --version / --check work as advertised. --check dry-runs the configuration without starting the
+  server.
+
+
 ## v0.1.2 (2026-04-18)
 
 ### Bug Fixes
