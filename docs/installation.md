@@ -251,11 +251,22 @@ git clone https://github.com/FreddyMcFett/fortios-mcp.git
 cd fortios-mcp
 uv venv                       # creates .venv/
 uv pip install -e .           # or: uv pip install .
-uv run fortios-mcp --help     # sanity check
+uv run fortios-mcp --help     # sanity check — prints usage and exits
 ```
 
 The entry-point script `fortios-mcp` is now available via
-`uv run fortios-mcp` inside this directory.
+`uv run fortios-mcp` inside this directory. Useful flags:
+
+| Flag | Purpose |
+|------|---------|
+| `--help` | Print usage and exit. |
+| `--version` | Print the installed version and exit. |
+| `--transport {auto,stdio,http}` | Override `MCP_SERVER_MODE` for a single run. |
+| `--check` | Validate env vars / credentials and exit 0 without starting the server. |
+
+Once the environment variables from [Step 3](#step-3--configure-environment-variables)
+are set, run `uv run fortios-mcp --check` for a dry run that confirms the
+credentials are present before wiring the server into an MCP client.
 
 ### pipx (local, no venv mgmt)
 
@@ -650,6 +661,7 @@ regenerated per FortiOS release; see
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
+| `error: Missing required environment variables: FORTIOS_HOST, FORTIOS_API_TOKEN` on startup | Env vars not exported into the shell (or `.env` not loaded) | Export both variables or populate `.env`, then rerun. `uv run fortios-mcp --check` confirms the config without starting the server. |
 | `AuthenticationError` on first call | Wrong `FORTIOS_API_TOKEN` or source IP not in `trusthost` | Re-check the token and `trusthost1` on the api-user. |
 | `ssl.SSLCertVerificationError` | Self-signed FortiGate cert | Set `FORTIOS_VERIFY_SSL=false` (lab only) or install a trusted cert on the FortiGate. |
 | Tool call returns `"writes are disabled"` | Write-guard blocking a mutating tool | Set `FORTIOS_ENABLE_WRITES=true` and restart. |
