@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.2.1 (2026-04-21)
+
+### Bug Fixes
+
+- **cli**: Exit cleanly on SIGINT instead of leaking a traceback
+  ([`29f6bf0`](https://github.com/FreddyMcFett/fortios-mcp/commit/29f6bf0c19ef56eb44ecab416df209d883d25093))
+
+anyio re-raises KeyboardInterrupt out of the event loop when Ctrl+C hits the stdio/HTTP run, so the
+  shutdown message was followed by an anyio.WouldBlock -> asyncio.CancelledError ->
+  KeyboardInterrupt chain. Catch KeyboardInterrupt around mcp.run() in main() and return 130 so the
+  operator sees a single "Interrupted by user; exiting" log line.
+
+
 ## v0.2.0 (2026-04-21)
 
 ### Features
