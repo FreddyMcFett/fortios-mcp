@@ -227,8 +227,8 @@ From the host that will run the server:
 
 ```bash
 curl -sk -H "Authorization: Bearer <token>" \
-  "https://<fortigate>/api/v2/monitor/system/status" | jq .http_status
-# expected: 200
+  "https://<fortigate>/api/v2/monitor/system/status" | jq .
+# expected: FortiGate System Status
 ```
 
 If you get `401`, double-check `trusthost`. If you get a TLS error on
