@@ -1,6 +1,64 @@
 # CHANGELOG
 
 
+## v0.3.0 (2026-04-24)
+
+### Documentation
+
+- Clarify that Claude Desktop HTTP connector requires https
+  ([`fe1f8c9`](https://github.com/FreddyMcFett/fortios-mcp/commit/fe1f8c9d865e4a0ce3edbe47007b804775b31446))
+
+Claude Desktop's and Claude Code's custom-connector UI rejects plain http:// URLs, so the
+  http://localhost:8002/ endpoint documented in the Docker quick-start is usable only from direct
+  HTTP clients (LangGraph, curl, custom SDKs). Document that users must front the container with a
+  TLS terminator (Caddy / Nginx / Tailscale Funnel / Cloudflare Tunnel) and point Claude Desktop at
+  the resulting https:// URL, and add a new "Connecting Claude Desktop to the HTTP endpoint"
+  subsection showing two concrete paths.
+
+- Consolidate installation guide into README and simplify install paths
+  ([`f2269c0`](https://github.com/FreddyMcFett/fortios-mcp/commit/f2269c01a67956a10df8e52ec62e2ca8bc34a07c))
+
+- Merge docs/installation.md content into README.md so the README is self-contained - Reduce
+  install/update/uninstall to the recommended uv flow only - Drop pipx, Docker, systemd alternative
+  install paths from the user- facing instructions to keep onboarding focused
+
+- Remove docs/installation.md (content folded into README)
+  ([`18d5586`](https://github.com/FreddyMcFett/fortios-mcp/commit/18d5586dfe9d347cc10e20deff29334b01706b99))
+
+### Features
+
+- Align install docs and Docker surface with fortianalyzer-mcp; fix HTTP auth + policy move
+  ([`3cf4826`](https://github.com/FreddyMcFett/fortios-mcp/commit/3cf4826463f6814c5877b7d20a40ef7bc5b585bf))
+
+Installation docs now match the fortianalyzer-mcp experience end to end:
+
+- Restore docs/installation.md (referenced from server.py and CLAUDE.md §10a but missing on disk)
+  with prerequisites, client setup for Claude Desktop / Claude Code / Perplexity, a Docker / HTTP
+  section, a reverse-proxy deployment section, and a troubleshooting table. - Add docs/UPDATING.md
+  describing the workflow for bumping to a new FortiOS release. - Add .dockerignore mirroring
+  fortianalyzer-mcp. - docker-compose.yml: add healthcheck hitting /health, resource limits, a
+  dedicated network, and forward every env var through the compose environment block. - Dockerfile
+  healthcheck now targets /health instead of /. - .env.example reorganised into labelled sections
+  matching fortianalyzer-mcp. - README.md: add Docker / HTTP Deployment, Production Deployment
+  (reverse proxy), MCP_* env-var rows, new troubleshooting rows, and pointers to
+  docs/installation.md and docs/UPDATING.md.
+
+Bug fixes that make the documented install actually work:
+
+- fix(server): wire up MCP_AUTH_TOKEN and MCP_ALLOWED_HOSTS. Both were declared in Settings and
+  advertised in README/.env.example but the HTTP transport never enforced them. HTTP mode now runs
+  via a Starlette app that mounts the MCP streamable-HTTP app, adds a constant-time Bearer-token
+  middleware (when MCP_AUTH_TOKEN is set), and passes TransportSecuritySettings(allowed_hosts=...)
+  to FastMCP so deployments behind Traefik/nginx aren't rejected by the SDK's DNS-rebinding check. -
+  fix(server): add a real /health endpoint returning {status, service, version, fortigate_connected}
+  so Docker/compose healthchecks and reverse proxies can probe the server. - fix(firewall):
+  move_firewall_policy now issues PUT /api/v2/cmdb/firewall/policy/<id>?action=move&before=<id> (or
+  &after=<id>) with no body, which is what FortiOS actually expects. The previous implementation
+  sent the target as a JSON body and silently failed against real hardware. Extends cmdb_update on
+  the client to accept optional query params; adds a regression test that asserts the exact wire
+  form.
+
+
 ## v0.2.1 (2026-04-21)
 
 ### Bug Fixes
