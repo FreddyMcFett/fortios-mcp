@@ -33,23 +33,31 @@ Safe by default: every mutating operation is blocked unless
 
 ![fortios-mcp architecture](docs/architecture.svg)
 
-One server instance talks to one FortiGate. The MCP client speaks the
-Model Context Protocol over stdio or streamable HTTP; the server
+One `fortios-mcp` instance talks to exactly one FortiGate. The MCP
+client speaks the Model Context Protocol over stdio; the server
 translates tool calls into authenticated REST requests against
-`/api/v2/cmdb`, `/monitor`, `/log`, and `/service`. See
-[`docs/installation.md`](docs/installation.md) for the full deployment
-guide.
+`/api/v2/cmdb`, `/monitor`, `/log`, and `/service`. Run several
+instances (one per device) if you manage a fleet.
 
 ---
 
-## Quick start
+## Prerequisites
 
-> Want the detailed walkthrough — prerequisites, token creation,
-> Docker / systemd, TLS hardening, VDOMs, troubleshooting, and
-> upgrades? Jump to
-> **[`docs/installation.md`](docs/installation.md)**.
+| Requirement | Minimum | Notes |
+|-------------|---------|-------|
+| Python | 3.12 | Installed automatically by `uv` if missing. |
+| `uv` | latest | https://github.com/astral-sh/uv |
+| FortiGate | FortiOS **7.6.6** | The only supported version. |
+| Network | Outbound HTTPS from the host to the FortiGate management IP on `FORTIOS_PORT` (default `443`). |
+| MCP client | Claude Desktop, Claude Code, or any client that speaks MCP. |
 
-### 1. Create a REST API admin + token on the FortiGate
+---
+
+## Step 1 — Create a REST API token on the FortiGate
+
+Replace `<workstation-ip>` with the IP of the machine running
+`fortios-mcp`. The `trusthost` field is a hard allow-list enforced by
+FortiOS, so the token is useless from any other source address.
 
 ```cli
 config system accprofile
@@ -60,73 +68,113 @@ config system accprofile
         set netgrp read
         set vpngrp read
         set utmgrp read
+        set loggrp read
     next
 end
 
 config system api-user
     edit "mcp"
         set accprofile "mcp_readonly"
-        set trusthost1 <your-workstation-ip>/32
+        set trusthost1 <workstation-ip>/32
     next
 end
+
 execute api-user generate-key mcp
 ```
 
-Copy the generated token.
+FortiOS prints the token once — copy it immediately, you cannot fetch
+it again.
 
-### 2. Install and run (uv)
+> Want write access? Create a second profile with `read-write` groups
+> and a separate `mcp_rw` api-user. Keep them apart so you can flip
+> between read-only and read-write tokens deliberately.
+
+---
+
+## Step 2 — Install
 
 ```bash
+git clone https://github.com/FreddyMcFett/fortios-mcp.git
+cd fortios-mcp
 uv venv
 uv pip install -e .
+```
+
+That's it — the `fortios-mcp` entry point is now available via
+`uv run fortios-mcp` inside this directory.
+
+---
+
+## Step 3 — Run
+
+```bash
 FORTIOS_HOST=fgt.example.com \
 FORTIOS_API_TOKEN=xxxxxxxxxxxx \
   uv run fortios-mcp
 ```
 
-### 3. Or run via Docker
+Or hook it into Claude Desktop — edit `claude_desktop_config.json`:
 
-```bash
-cp .env.example .env        # edit credentials
-chmod 600 .env
-docker compose up -d
-# MCP streamable HTTP endpoint → http://localhost:8002/
-```
-
-> Claude Desktop and Claude Code only accept `https://` URLs in the
-> custom-connector UI, so the raw `http://localhost:8002/` endpoint
-> above works for direct HTTP clients (LangGraph, `curl`, custom
-> SDKs) but not as a Claude Desktop connector. Front the container
-> with a TLS-terminating proxy (Caddy / Nginx / Tailscale Funnel /
-> Cloudflare Tunnel) and point Claude Desktop at the resulting
-> `https://` URL — see
-> [docs/installation.md](docs/installation.md#connecting-claude-desktop-to-the-http-endpoint).
-
-### 4. Hook it up to Claude Desktop
-
-`claude_desktop_config.json`:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "fortios": {
       "command": "uv",
-      "args": ["run", "fortios-mcp"],
+      "args": ["run", "--directory", "/absolute/path/to/fortios-mcp", "fortios-mcp"],
       "env": {
         "FORTIOS_HOST": "fgt.example.com",
         "FORTIOS_API_TOKEN": "xxxxxxxxxxxx",
-        "FORTIOS_VERIFY_SSL": "false"
+        "FORTIOS_VERIFY_SSL": "false",
+        "FORTIOS_DEFAULT_VDOM": "root"
       }
     }
   }
 }
 ```
 
+Restart Claude Desktop and `fortios` will appear in the MCP servers
+panel.
+
+For Claude Code, drop the same `mcpServers` block into
+`.claude/mcp.json` and run `claude mcp list` to confirm.
+
+---
+
+## Update
+
+```bash
+cd fortios-mcp
+git pull --ff-only
+uv pip install -e . --upgrade
+```
+
+Restart your MCP client (Claude Desktop / Claude Code) so it spawns the
+new process.
+
+---
+
+## Uninstall
+
+```bash
+# Local
+rm -rf /path/to/fortios-mcp
+
+# FortiGate — revoke the token(s) you created
+config system api-user
+    delete mcp
+end
+```
+
 ---
 
 ## Configuration
 
-All settings come from environment variables (or a `.env` file):
+All settings come from environment variables (or a `.env` file). See
+[`.env.example`](.env.example) for the full template.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -139,13 +187,33 @@ All settings come from environment variables (or a `.env` file):
 | `FORTIOS_DEFAULT_VDOM` | `root` | VDOM used when a tool call omits one |
 | `FORTIOS_ENABLE_WRITES` | `false` | **Must be `true` for any mutating tool** |
 | `FORTIOS_TOOL_MODE` | `full` | `full` registers everything, `dynamic` registers only discovery tools |
-| `MCP_SERVER_MODE` | `auto` | `auto` / `stdio` / `http` |
-| `MCP_SERVER_HOST` | `0.0.0.0` | HTTP bind |
-| `MCP_SERVER_PORT` | `8002` | HTTP port |
-| `MCP_AUTH_TOKEN` | — | Bearer token required in HTTP mode |
 | `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
+| `LOG_FILE` | unset | Path to mirror logs to disk |
 
-See [`.env.example`](.env.example) for the full template.
+`.env` files must be `chmod 600`; `utils/config.py` emits a warning
+otherwise.
+
+---
+
+## How write-guarding works
+
+1. Every mutating tool is decorated with `@require_writes`.
+2. When `FORTIOS_ENABLE_WRITES=false`, the decorator short-circuits the
+   call and returns `{"status": "error", "message": "..."}`.
+3. `tests/test_write_guard.py` fails if anyone adds a mutating tool
+   without the guard.
+
+Recommended workflow when you do need to make changes:
+
+1. Generate a **separate** read-write token on the FortiGate.
+2. Set `FORTIOS_API_TOKEN` to the RW token **and**
+   `FORTIOS_ENABLE_WRITES=true`.
+3. Restart the server.
+4. Flip back to the read-only token when you're done.
+
+> **Tip:** Even with writes enabled, ask the model to *describe* the
+> change first (e.g. show the JSON body it plans to POST) and explicitly
+> approve before it calls a mutating tool.
 
 ---
 
@@ -212,18 +280,36 @@ See [`.env.example`](.env.example) for the full template.
 **Total: ~88 tools.** Everything not listed above is still reachable via
 the generic primitives combined with `describe_endpoint`.
 
+When the model needs an endpoint that isn't curated, it uses the four
+schema-discovery tools to browse the bundled Swagger and then calls the
+matching generic primitive (`cmdb_get`, `monitor_get`, etc.) with the
+right path and parameters.
+
 ---
 
-## How write-guarding works
+## VDOMs
 
-1. Every mutating tool is decorated with `@require_writes`.
-2. When `FORTIOS_ENABLE_WRITES=false`, the decorator short-circuits the
-   call and returns `{"status": "error", "message": "..."}`.
-3. `tests/test_write_guard.py` fails if anyone adds a mutating tool
-   without the guard.
+Every tool that accepts a `vdom` argument defaults to
+`FORTIOS_DEFAULT_VDOM`. Override per-call by passing the VDOM name
+explicitly. For a multi-VDOM box, set `FORTIOS_DEFAULT_VDOM` to the
+VDOM you operate in most often.
 
-Turn writes on per session (stdio) or per container (HTTP) —
-never leave it on globally.
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `error: Missing required environment variables: FORTIOS_HOST, FORTIOS_API_TOKEN` on startup | Env vars not exported into the shell (or `.env` not loaded) | Export both variables or populate `.env`, then rerun. |
+| `AuthenticationError` on first call | Wrong `FORTIOS_API_TOKEN` or source IP not in `trusthost` | Re-check the token and `trusthost1` on the api-user. |
+| `ssl.SSLCertVerificationError` | Self-signed FortiGate cert | Set `FORTIOS_VERIFY_SSL=false` (lab only) or install a trusted cert on the FortiGate. |
+| Tool call returns `"writes are disabled"` | Write-guard blocking a mutating tool | Set `FORTIOS_ENABLE_WRITES=true` and restart. |
+| `NotFoundError` on a valid-looking path | VDOM mismatch | Pass `vdom=` explicitly or set `FORTIOS_DEFAULT_VDOM`. |
+| Claude Desktop shows no `fortios` server | `command` / `args` / `cwd` wrong in `claude_desktop_config.json` | Use an **absolute** path, and check the Claude Desktop MCP log file. |
+
+Turn on `LOG_LEVEL=DEBUG` for per-request traces; all tokens,
+passwords, and PSKs are redacted by `sanitize_for_logging()` before
+anything hits the log.
 
 ---
 
@@ -257,7 +343,6 @@ Every feature change must ship with matching doc updates — see
 
 | Doc | What's in it |
 |-----|--------------|
-| [`docs/installation.md`](docs/installation.md) | Prerequisites, token creation, all deployment modes (uv / pipx / Docker / systemd), MCP client wiring, usage recipes, TLS hardening, troubleshooting, upgrades |
 | [`docs/architecture.svg`](docs/architecture.svg) | High-level architecture diagram |
 | [`CLAUDE.md`](CLAUDE.md) | Project handbook — architecture, coding standards, tool taxonomy, release flow, security posture |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Pre-PR checklist and commit conventions |
@@ -275,9 +360,6 @@ Fully automated via
 - Every push to `main` runs `.github/workflows/release.yml`, which
   bumps the version, updates `CHANGELOG.md`, tags, and drafts a GitHub
   release.
-- Tags matching `v*` trigger `.github/workflows/docker-publish.yml`
-  and push a multi-arch image to
-  `ghcr.io/freddymcfett/fortios-mcp`.
 
 Never edit `CHANGELOG.md` or bump `pyproject.toml` manually.
 
