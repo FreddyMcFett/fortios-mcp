@@ -1,16 +1,54 @@
 services:
   fortios-mcp:
     image: ghcr.io/freddymcfett/fortios-mcp:latest
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: fortios-mcp
     restart: unless-stopped
     ports:
-      - "8002:8002"
+      - "${MCP_SERVER_PORT:-8002}:8002"
     env_file:
       - .env
     environment:
-      MCP_SERVER_MODE: http
-      MCP_SERVER_HOST: 0.0.0.0
-      MCP_SERVER_PORT: 8002
+      # FortiGate connection
+      - FORTIOS_HOST=${FORTIOS_HOST}
+      - FORTIOS_PORT=${FORTIOS_PORT:-443}
+      - FORTIOS_API_TOKEN=${FORTIOS_API_TOKEN:-}
+      - FORTIOS_VERIFY_SSL=${FORTIOS_VERIFY_SSL:-false}
+      - FORTIOS_TIMEOUT=${FORTIOS_TIMEOUT:-30}
+      - FORTIOS_MAX_RETRIES=${FORTIOS_MAX_RETRIES:-3}
+      - FORTIOS_DEFAULT_VDOM=${FORTIOS_DEFAULT_VDOM:-root}
+      - FORTIOS_ENABLE_WRITES=${FORTIOS_ENABLE_WRITES:-false}
+      - FORTIOS_TOOL_MODE=${FORTIOS_TOOL_MODE:-full}
+      # MCP Server
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8002
+      - MCP_SERVER_MODE=http
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE=/app/logs/fortios-mcp.log
+      # Docker marker
+      - DOCKER_CONTAINER=1
     volumes:
       - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    networks:
+      - fortios-mcp-network
+
+networks:
+  fortios-mcp-network:
+    driver: bridge

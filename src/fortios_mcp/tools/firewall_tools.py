@@ -82,6 +82,10 @@ async def move_firewall_policy(
 ) -> dict[str, Any]:
     """Reorder a firewall policy. Write-guarded.
 
+    FortiOS moves policies via the query-parameter form
+    ``PUT /api/v2/cmdb/firewall/policy/<id>?action=move&before=<target>``
+    (or ``&after=<target>``) with no body.
+
     Args:
         policyid: Policy ID to move.
         action: ``"before"`` or ``"after"``.
@@ -90,11 +94,12 @@ async def move_firewall_policy(
     try:
         if action not in {"before", "after"}:
             raise ValueError("action must be 'before' or 'after'")
+        params = {"action": "move", action: target}
         return ok(
             await get_client().cmdb_update(
                 f"firewall/policy/{policyid}",
-                {"action": action, "target": target},
                 vdom=vdom,
+                params=params,
             )
         )
     except (FortiOSError, ValueError) as exc:

@@ -47,8 +47,7 @@ USER fgtmcp
 EXPOSE 8002
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD python -c "import urllib.request, sys; \
-    sys.exit(0 if urllib.request.urlopen('http://localhost:8002/', timeout=5).status < 500 else 1)" \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/health', timeout=5)" \
     || exit 1
 
 CMD ["python", "-m", "fortios_mcp"]

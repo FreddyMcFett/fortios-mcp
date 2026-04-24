@@ -8,6 +8,8 @@ registers the tool modules; :func:`main` selects a transport and runs.
 from __future__ import annotations
 
 import argparse
+import hmac
+import json
 import logging
 import os
 import sys
@@ -15,6 +17,7 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from fortios_mcp import __version__
 from fortios_mcp.api.client import FortiOSClient
@@ -48,6 +51,19 @@ async def _lifespan(_server: FastMCP) -> AsyncIterator[dict[str, FortiOSClient]]
         await client.close()
 
 
+def _build_transport_security(settings: Settings) -> TransportSecuritySettings | None:
+    """Build MCP transport-security settings from MCP_ALLOWED_HOSTS.
+
+    Returns ``None`` when no extra hosts are configured (localhost /
+    127.0.0.1 are always allowed by the SDK regardless).
+    """
+    if not settings.MCP_ALLOWED_HOSTS:
+        return None
+    return TransportSecuritySettings(allowed_hosts=settings.MCP_ALLOWED_HOSTS)
+
+
+_boot_settings = get_settings()
+
 mcp: FastMCP = FastMCP(
     "FortiOS MCP Server",
     instructions=(
@@ -57,6 +73,7 @@ mcp: FastMCP = FastMCP(
     ),
     stateless_http=True,
     lifespan=_lifespan,
+    transport_security=_build_transport_security(_boot_settings),
 )
 
 
@@ -121,6 +138,102 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _run_http(settings: Settings) -> None:
+    """Serve the MCP streamable-HTTP app via uvicorn, with /health and optional auth."""
+    import uvicorn
+    from starlette.applications import Starlette
+    from starlette.middleware import Middleware
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse, Response
+    from starlette.routing import Mount, Route
+    from starlette.types import ASGIApp, Receive, Scope, Send
+
+    class AuthMiddleware:
+        """ASGI middleware: require ``Authorization: Bearer <MCP_AUTH_TOKEN>`` on non-/health paths."""
+
+        def __init__(self, app: ASGIApp) -> None:
+            self.app = app
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http":
+                await self.app(scope, receive, send)
+                return
+            token = settings.MCP_AUTH_TOKEN
+            if not token:
+                await self.app(scope, receive, send)
+                return
+            if scope.get("path", "") == "/health":
+                await self.app(scope, receive, send)
+                return
+            headers = dict(scope.get("headers", []))
+            auth_value = headers.get(b"authorization", b"").decode()
+            expected = f"Bearer {token}"
+            if not hmac.compare_digest(auth_value, expected):
+                response = Response(
+                    content=json.dumps(
+                        {"error": "Unauthorized", "detail": "Invalid or missing Bearer token"}
+                    ),
+                    status_code=401,
+                    media_type="application/json",
+                )
+                await response(scope, receive, send)
+                return
+            await self.app(scope, receive, send)
+
+    async def health_endpoint(_request: Request) -> JSONResponse:
+        from fortios_mcp import tools as tools_mod
+
+        client = tools_mod._client
+        connected = client is not None and client.version is not None
+        return JSONResponse(
+            {
+                "status": "healthy",
+                "service": "fortios-mcp",
+                "version": __version__,
+                "fortigate_connected": connected,
+            }
+        )
+
+    @asynccontextmanager
+    async def _app_lifespan(_app: Starlette) -> AsyncIterator[None]:
+        # Set up the FortiOSClient once for the life of the process, so every
+        # streamable-HTTP session reuses it instead of reconnecting per request.
+        from fortios_mcp.tools import set_client
+
+        client = FortiOSClient.from_settings(settings)
+        set_client(client)
+        try:
+            try:
+                await client.probe()
+            except Exception as exc:  # pragma: no cover - network probe
+                logger.warning(
+                    "Initial FortiGate probe failed (%s); tools will surface "
+                    "the error on first call.",
+                    exc,
+                )
+            async with mcp.session_manager.run():
+                yield
+        finally:
+            set_client(None)
+            await client.close()
+
+    app = Starlette(
+        routes=[
+            Route("/health", health_endpoint, methods=["GET"]),
+            Mount("/", app=mcp.streamable_http_app()),
+        ],
+        lifespan=_app_lifespan,
+        middleware=[Middleware(AuthMiddleware)],
+    )
+
+    uvicorn.run(
+        app,
+        host=settings.MCP_SERVER_HOST,
+        port=settings.MCP_SERVER_PORT,
+        log_level=settings.LOG_LEVEL.lower(),
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point.
 
@@ -158,9 +271,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if mode == "stdio":
             mcp.run(transport="stdio")
         elif mode == "http":
-            mcp.settings.host = settings.MCP_SERVER_HOST
-            mcp.settings.port = settings.MCP_SERVER_PORT
-            mcp.run(transport="streamable-http")
+            _run_http(settings)
         else:  # pragma: no cover - guarded by validator
             raise RuntimeError(f"Unknown MCP_SERVER_MODE: {mode}")
     except KeyboardInterrupt:
