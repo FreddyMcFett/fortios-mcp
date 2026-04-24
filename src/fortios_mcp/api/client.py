@@ -179,11 +179,14 @@ class FortiOSClient:
     async def cmdb_update(
         self,
         path: str,
-        body: dict[str, Any],
+        body: dict[str, Any] | None = None,
         *,
         vdom: str | None = None,
+        params: dict[str, Any] | None = None,
     ) -> Any:
-        return await self._request("PUT", "cmdb", path, vdom=vdom, json=body)
+        # FortiOS uses PUT for both full replacement and action-style endpoints
+        # like ``?action=move&before=<id>`` which take query params but no body.
+        return await self._request("PUT", "cmdb", path, vdom=vdom, params=params, json=body)
 
     async def cmdb_delete(self, path: str, *, vdom: str | None = None) -> Any:
         return await self._request("DELETE", "cmdb", path, vdom=vdom)

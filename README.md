@@ -93,6 +93,8 @@ it again.
 
 ## Step 2 — Install
 
+### Using uv (recommended)
+
 ```bash
 git clone https://github.com/FreddyMcFett/fortios-mcp.git
 cd fortios-mcp
@@ -102,6 +104,27 @@ uv pip install -e .
 
 That's it — the `fortios-mcp` entry point is now available via
 `uv run fortios-mcp` inside this directory.
+
+### Using pip
+
+```bash
+git clone https://github.com/FreddyMcFett/fortios-mcp.git
+cd fortios-mcp
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+### Using Docker
+
+Pre-built images are published on GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/freddymcfett/fortios-mcp:latest
+```
+
+See [Docker / HTTP Deployment](#docker--http-deployment) below for the
+full Compose example.
 
 ---
 
@@ -142,6 +165,107 @@ panel.
 For Claude Code, drop the same `mcpServers` block into
 `.claude/mcp.json` and run `claude mcp list` to confirm.
 
+See [`docs/installation.md`](docs/installation.md) for the full setup
+guide (Claude Code CLI, Perplexity, reverse-proxy, troubleshooting).
+
+---
+
+## Docker / HTTP Deployment
+
+```yaml
+# docker-compose.yml
+services:
+  fortios-mcp:
+    image: ghcr.io/freddymcfett/fortios-mcp:latest
+    container_name: fortios-mcp
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      - MCP_SERVER_MODE=http
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8002
+      - FORTIOS_HOST=fgt.example.com
+      - FORTIOS_VERIFY_SSL=false
+      - FORTIOS_DEFAULT_VDOM=root
+      - FORTIOS_TOOL_MODE=full
+      - LOG_LEVEL=INFO
+```
+
+Put secrets in `.env` (never tracked in git):
+
+```bash
+# .env
+FORTIOS_API_TOKEN=your-api-token
+MCP_AUTH_TOKEN=your-secret-bearer-token  # optional, enables HTTP auth
+```
+
+```bash
+chmod 600 .env
+docker compose up -d
+```
+
+Verify the server:
+
+```bash
+curl http://localhost:8002/health
+# {"status": "healthy", "service": "fortios-mcp", "fortigate_connected": true, ...}
+```
+
+### Connecting an MCP client over HTTP
+
+**Claude Code** (`~/.claude/mcp_servers.json`):
+
+```json
+{
+  "mcpServers": {
+    "fortios": {
+      "type": "streamable-http",
+      "url": "https://your-mcp-host.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer your-mcp-auth-token"
+      }
+    }
+  }
+}
+```
+
+**Claude Desktop** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "fortios": {
+      "type": "streamable-http",
+      "url": "https://your-mcp-host.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer your-mcp-auth-token"
+      }
+    }
+  }
+}
+```
+
+### Production Deployment (Reverse Proxy)
+
+Behind a TLS-terminating reverse proxy (Traefik, nginx) you must set
+`MCP_ALLOWED_HOSTS` so the MCP SDK accepts the external hostname:
+
+```bash
+MCP_ALLOWED_HOSTS=["mcp.example.com"]
+```
+
+And always set a Bearer token:
+
+```bash
+MCP_AUTH_TOKEN=$(openssl rand -hex 32)
+```
+
+Full Traefik-labelled Compose example: see
+[`docs/installation.md`](docs/installation.md#production-deployment-reverse-proxy).
+
 ---
 
 ## Update
@@ -150,6 +274,13 @@ For Claude Code, drop the same `mcpServers` block into
 cd fortios-mcp
 git pull --ff-only
 uv pip install -e . --upgrade
+```
+
+Or, for Docker:
+
+```bash
+docker compose pull
+docker compose up -d
 ```
 
 Restart your MCP client (Claude Desktop / Claude Code) so it spawns the
@@ -162,6 +293,10 @@ new process.
 ```bash
 # Local
 rm -rf /path/to/fortios-mcp
+
+# Docker
+docker compose down
+docker image rm ghcr.io/freddymcfett/fortios-mcp:latest
 
 # FortiGate — revoke the token(s) you created
 config system api-user
@@ -187,6 +322,11 @@ All settings come from environment variables (or a `.env` file). See
 | `FORTIOS_DEFAULT_VDOM` | `root` | VDOM used when a tool call omits one |
 | `FORTIOS_ENABLE_WRITES` | `false` | **Must be `true` for any mutating tool** |
 | `FORTIOS_TOOL_MODE` | `full` | `full` registers everything, `dynamic` registers only discovery tools |
+| `MCP_SERVER_MODE` | `auto` | `auto`, `stdio`, or `http` |
+| `MCP_SERVER_HOST` | `0.0.0.0` | HTTP bind address |
+| `MCP_SERVER_PORT` | `8002` | HTTP port |
+| `MCP_AUTH_TOKEN` | unset | Bearer token required on every HTTP request except `/health` |
+| `MCP_ALLOWED_HOSTS` | unset | Extra Host headers to accept (JSON array or CSV) — required behind a reverse proxy |
 | `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
 | `LOG_FILE` | unset | Path to mirror logs to disk |
 
@@ -306,6 +446,9 @@ VDOM you operate in most often.
 | Tool call returns `"writes are disabled"` | Write-guard blocking a mutating tool | Set `FORTIOS_ENABLE_WRITES=true` and restart. |
 | `NotFoundError` on a valid-looking path | VDOM mismatch | Pass `vdom=` explicitly or set `FORTIOS_DEFAULT_VDOM`. |
 | Claude Desktop shows no `fortios` server | `command` / `args` / `cwd` wrong in `claude_desktop_config.json` | Use an **absolute** path, and check the Claude Desktop MCP log file. |
+| HTTP 401 from `/mcp` | `MCP_AUTH_TOKEN` mismatch | Check both ends of the Bearer token. |
+| Reverse-proxy requests rejected before reaching the app | `MCP_ALLOWED_HOSTS` unset | Add your public hostname to `MCP_ALLOWED_HOSTS`. |
+| `/health` returns `"fortigate_connected": false` | Initial probe failed | Inspect container logs; check network / token. |
 
 Turn on `LOG_LEVEL=DEBUG` for per-request traces; all tokens,
 passwords, and PSKs are redacted by `sanitize_for_logging()` before
@@ -343,6 +486,8 @@ Every feature change must ship with matching doc updates — see
 
 | Doc | What's in it |
 |-----|--------------|
+| [`docs/installation.md`](docs/installation.md) | Full installation & setup guide (prerequisites, clients, Docker, reverse proxy, troubleshooting) |
+| [`docs/UPDATING.md`](docs/UPDATING.md) | Workflow for bumping to a new FortiOS release |
 | [`docs/architecture.svg`](docs/architecture.svg) | High-level architecture diagram |
 | [`CLAUDE.md`](CLAUDE.md) | Project handbook — architecture, coding standards, tool taxonomy, release flow, security posture |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Pre-PR checklist and commit conventions |
